@@ -1,0 +1,220 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=9; IE=8; IE=7; IE=EDGE"/>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>Project Gantt Chart</title>
+
+  <link rel="stylesheet" href="platform.css" type="text/css">
+  <link rel="stylesheet" href="libs/jquery/dateField/jquery.dateField.css" type="text/css">
+  <link rel="stylesheet" href="gantt.css" type="text/css">
+  <link rel="stylesheet" href="ganttPrint.css" type="text/css" media="print">
+  <link rel="stylesheet" href="libs/jquery/valueSlider/mb.slider.css" type="text/css" media="print">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+
+  <script src="libs/jquery/jquery.livequery.1.1.1.min.js"></script>
+  <script src="libs/jquery/jquery.timers.js"></script>
+
+  <script src="libs/utilities.js"></script>
+  <script src="libs/forms.js"></script>
+  <script src="libs/date.js"></script>
+  <script src="libs/dialogs.js"></script>
+  <script src="libs/layout.js"></script>
+  <script src="libs/i18nJs.js"></script>
+  <script src="libs/jquery/dateField/jquery.dateField.js"></script>
+  <script src="libs/jquery/JST/jquery.JST.js"></script>
+  <script src="libs/jquery/valueSlider/jquery.mb.slider.js"></script>
+
+  <script type="text/javascript" src="libs/jquery/svg/jquery.svg.min.js"></script>
+  <script type="text/javascript" src="libs/jquery/svg/jquery.svgdom.1.8.js"></script>
+
+  <script src="ganttUtilities.js"></script>
+  <script src="ganttTask.js"></script>
+  <script src="ganttDrawerSVG.js"></script>
+  <script src="ganttZoom.js"></script>
+  <script src="ganttGridEditor.js"></script>
+  <script src="ganttMaster.js"></script>  
+</head>
+<body>
+    <div id="workSpace"></div>
+
+    <!-- Define required templates -->
+    <div class="__template__" type="TASKSEDITHEAD">
+        <div>
+            <h2>Edit Tasks</h2>
+        </div>
+    </div>
+    <div class="__template__" type="GANTBUTTONS">
+        <div>
+            <button>Button1</button>
+            <button>Button2</button>
+        </div>
+    </div>
+    <div class="__template__" type="RESOURCE_EDITOR">
+        <div class="resourceEditor" style="padding: 5px;">
+            <h2>Project team</h2>
+            <table cellspacing="1" cellpadding="0" width="100%" id="resourcesTable">
+                <tr>
+                    <th style="width:100px;">name</th>
+                    <th style="width:30px;" id="addResource"><span class="teamworkIcon" style="cursor: pointer">+</span></th>
+                </tr>
+            </table>
+            <div style="text-align: right; padding-top: 20px"><button id="resSaveButton" class="button big">Save</button></div>
+        </div>
+    </div>
+    <div class="__template__" type="RESOURCE_ROW">
+        <tr resId="(#=obj.id#)" class="resRow">
+            <td><input type="text" name="name" value="(#=obj.name#)" style="width:100%;" class="formElements"></td>
+            <td align="center"><span class="teamworkIcon delRes del" style="cursor: pointer">d</span></td>
+        </tr>
+    </div>
+    <div class="__template__" type="TASKEMPTYROW">
+        <div>
+            <p>Task Empty Row</p>
+        </div>
+    </div>
+
+    <script>
+        function editResources() {
+            // make resource editor
+            var resourceEditor = $.JST.createFromTemplate({}, "RESOURCE_EDITOR");
+            var resTbl = resourceEditor.find("#resourcesTable");
+
+            console.log("Resources:", ge.resources); // Debugging log
+
+            for (var i = 0; i < ge.resources.length; i++) {
+                var res = ge.resources[i];
+                resTbl.append($.JST.createFromTemplate(res, "RESOURCE_ROW"))
+            }
+
+            // bind add resource
+            resourceEditor.find("#addResource").click(function() {
+                resTbl.append($.JST.createFromTemplate({id:"new", name:"resource"}, "RESOURCE_ROW"))
+            });
+
+            // bind save event
+            resourceEditor.find("#resSaveButton").click(function() {
+                var newRes = [];
+                // find for deleted res
+                for (var i = 0; i < ge.resources.length; i++) {
+                    var res = ge.resources[i];
+                    var row = resourceEditor.find("[resId=" + res.id + "]");
+                    if (row.length > 0) {
+                        // if still there save it
+                        var name = row.find("input[name]").val();
+                        if (name && name != "")
+                            res.name = name;
+                        newRes.push(res);
+                    } else {
+                        // remove assignments
+                        for (var j = 0; j < ge.tasks.length; j++) {
+                            var task = ge.tasks[j];
+                            var newAss = [];
+                            for (var k = 0; k < task.assigs.length; k++) {
+                                var ass = task.assigs[k];
+                                if (ass.resourceId != res.id)
+                                    newAss.push(ass);
+                            }
+                            task.assigs = newAss;
+                        }
+                    }
+                }
+
+                // loop on new rows
+                var cnt = 0
+                resourceEditor.find("[resId=new]").each(function() {
+                    cnt++;
+                    var row = $(this);
+                    var name = row.find("input[name]").val();
+                    if (name && name != "")
+                        newRes.push(new Resource("tmp_" + new Date().getTime() + "_" + cnt, name));
+                });
+
+                ge.resources = newRes;
+
+                closeBlackPopup();
+                ge.redraw();
+            });
+
+            var ndo = createModalPopup(400, 500).append(resourceEditor);
+        }
+
+        // Ensure the GanttMaster is initialized and the project is loaded before calling editResources
+        $(function() {
+            ge = new GanttMaster();
+            ge.init($("#workSpace"));
+
+            var project = getDemoProject(); // Replace with your project loading logic
+            ge.loadProject(project);
+            ge.checkpoint();
+
+            // Call editResources to test the resource editing
+            editResources();
+        });
+    </script>
+
+    <script>
+    function getDemoProject(){
+  //console.debug("getDemoProject")
+       ret= {"tasks":    [
+      {"id": -1, "name": "Gantt editor", "progress": 0, "progressByWorklog": false, "relevance": 0, "type": "", "typeId": "", "description": "", "code": "", "level": 0, "status": "STATUS_ACTIVE", "depends": "", "canWrite": true, "start": 1396994400000, "duration": 20, "end": 1399586399999, "startIsMilestone": false, "endIsMilestone": false, "collapsed": false, "assigs": [], "hasChild": true},
+      {"id": -2, "name": "coding", "progress": 0, "progressByWorklog": false, "relevance": 0, "type": "", "typeId": "", "description": "", "code": "", "level": 1, "status": "STATUS_ACTIVE", "depends": "", "canWrite": true, "start": 1396994400000, "duration": 10, "end": 1398203999999, "startIsMilestone": false, "endIsMilestone": false, "collapsed": false, "assigs": [], "hasChild": true},
+      {"id": -3, "name": "gantt part", "progress": 0, "progressByWorklog": false, "relevance": 0, "type": "", "typeId": "", "description": "", "code": "", "level": 2, "status": "STATUS_ACTIVE", "depends": "", "canWrite": true, "start": 1396994400000, "duration": 2, "end": 1397167199999, "startIsMilestone": false, "endIsMilestone": false, "collapsed": false, "assigs": [], "hasChild": false},
+      {"id": -4, "name": "editor part", "progress": 0, "progressByWorklog": false, "relevance": 0, "type": "", "typeId": "", "description": "", "code": "", "level": 2, "status": "STATUS_SUSPENDED", "depends": "3", "canWrite": true, "start": 1397167200000, "duration": 4, "end": 1397685599999, "startIsMilestone": false, "endIsMilestone": false, "collapsed": false, "assigs": [], "hasChild": false},
+      {"id": -5, "name": "testing", "progress": 0, "progressByWorklog": false, "relevance": 0, "type": "", "typeId": "", "description": "", "code": "", "level": 1, "status": "STATUS_SUSPENDED", "depends": "2:5", "canWrite": true, "start": 1398981600000, "duration": 5, "end": 1399586399999, "startIsMilestone": false, "endIsMilestone": false, "collapsed": false, "assigs": [], "hasChild": true},
+      {"id": -6, "name": "test on safari", "progress": 0, "progressByWorklog": false, "relevance": 0, "type": "", "typeId": "", "description": "", "code": "", "level": 2, "status": "STATUS_SUSPENDED", "depends": "", "canWrite": true, "start": 1398981600000, "duration": 2, "end": 1399327199999, "startIsMilestone": false, "endIsMilestone": false, "collapsed": false, "assigs": [], "hasChild": false},
+      {"id": -7, "name": "test on ie", "progress": 0, "progressByWorklog": false, "relevance": 0, "type": "", "typeId": "", "description": "", "code": "", "level": 2, "status": "STATUS_SUSPENDED", "depends": "6", "canWrite": true, "start": 1399327200000, "duration": 3, "end": 1399586399999, "startIsMilestone": false, "endIsMilestone": false, "collapsed": false, "assigs": [], "hasChild": false},
+      {"id": -8, "name": "test on chrome", "progress": 0, "progressByWorklog": false, "relevance": 0, "type": "", "typeId": "", "description": "", "code": "", "level": 2, "status": "STATUS_SUSPENDED", "depends": "6", "canWrite": true, "start": 1399327200000, "duration": 2, "end": 1399499999999, "startIsMilestone": false, "endIsMilestone": false, "collapsed": false, "assigs": [], "hasChild": false}
+    ], "selectedRow": 2, "deletedTaskIds": [],
+      "resources": [
+      {"id": "tmp_1", "name": "Resource 1"},
+      {"id": "tmp_2", "name": "Resource 2"},
+      {"id": "tmp_3", "name": "Resource 3"},
+      {"id": "tmp_4", "name": "Resource 4"},
+      {"id": "tmp_4", "name": "Resource 5"}
+    ],
+      "roles":       [
+      {"id": "tmp_1", "name": "Project Manager"},
+      {"id": "tmp_2", "name": "Worker"},
+      {"id": "tmp_3", "name": "Stakeholder"},
+      {"id": "tmp_4", "name": "Customer"},
+      {"id": "tmp_4", "name": "RRole 5"}
+    ], "canWrite":    true, "canDelete":true, "canWriteOnParent": true, canAdd:true}
+
+
+    //actualize data
+    var offset=new Date().getTime()-ret.tasks[0].start;
+    for (var i=0;i<ret.tasks.length;i++) {
+      ret.tasks[i].start = ret.tasks[i].start + offset;
+    }
+  return ret;
+}
+
+        function createModalPopup(width, height) {
+            // Create a modal popup. Adjust this function as needed.
+            var popup = $('<div>').css({
+                width: width + '15px',
+                height: height + '15px',
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                marginTop: '-' + (height / 2) + '20px',
+                marginLeft: '-' + (width / 2) + '20px',
+                backgroundColor: 'white',
+                border: '1px solid black',
+                zIndex: 1000
+            }).addClass('modal-popup');
+            $('body').append(popup);
+            return popup;
+        }
+
+        function closeBlackPopup() {
+            // Close the modal popup
+            $('.modal-popup').remove();
+        }
+    </script>
+
+</body>
+</html>
