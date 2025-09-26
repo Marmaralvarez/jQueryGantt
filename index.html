@@ -46,9 +46,6 @@
 <body style="background-color: #fff;">
 
 
-<div id="ndo" style="position:absolute;right:5px;top:5px;width:378px;padding:5px;background-color: #FFF5E6; border:1px solid #F9A22F; font-size:12px" class="noprint">
-  This Gantt editor is free thanks to <a href="http://twproject.com" target="_blank">Twproject</a> where it can be used on a complete and flexible project management solution.<br> Get your projects done! Give <a href="http://twproject.com" target="_blank">Twproject a try now</a>.
-</div>
 <div id="workSpace" style="padding:0px; overflow-y:auto; overflow-x:hidden;border:1px solid #e5e5e5;position:relative;margin:0 5px"></div>
 
 <style>
@@ -103,6 +100,8 @@ $(function() {
 
   ge.loadProject(project);
   ge.checkpoint(); //empty the undo stack
+
+
 
   initializeHistoryManagement(ge.tasks[0].id);
 });
@@ -199,7 +198,7 @@ function saveGanttOnServer() {
 
   var prj = ge.saveProject();
 
-  download(JSON.stringify(prj, null, '\t'), "MyProject.json", "application/json");
+  download(JSON.stringify(prj, null, '\t'), "ProjectData.json", "application/json");
 
   /*
 
@@ -288,8 +287,8 @@ function getFile() {
 function loadFromLocalStorage() {
   var ret;
   if (localStorage) {
-    if (localStorage.getObject("teamworkGantDemo")) {
-      ret = localStorage.getObject("teamworkGantDemo");
+    if (localStorage.getObject("GanttProject")) {
+      ret = localStorage.getObject("GanttProject");
     }
   }
 
@@ -324,7 +323,7 @@ function saveInLocalStorage() {
   var prj = ge.saveProject();
 
   if (localStorage) {
-    localStorage.setObject("teamworkGantDemo", prj);
+    localStorage.setObject("GanttProject", prj);
   }
 }
 
@@ -521,7 +520,7 @@ function showBaselineInfo (event,element){
   <!--
   <div class="ganttButtonBar noprint">
     <div class="buttons">
-      <a href="https://gantt.twproject.com/"><img src="res/twGanttLogo.png" alt="Twproject" align="absmiddle" style="max-width: 136px; padding-right: 15px"></a>
+     
 
       <button onclick="$('#workSpace').trigger('undo.gantt');return false;" class="button textual icon requireCanWrite" title="undo"><span class="teamworkIcon">&#39;</span></button>
       <button onclick="$('#workSpace').trigger('redo.gantt');return false;" class="button textual icon requireCanWrite" title="redo"><span class="teamworkIcon">&middot;</span></button>
@@ -577,16 +576,16 @@ function showBaselineInfo (event,element){
     <tr style="height:40px">
       <th class="gdfColHeader" style="width:35px; border-right: none"></th>
       <th class="gdfColHeader" style="width:25px;"></th>
-      <th class="gdfColHeader gdfResizable" style="width:100px;">code/short name</th>
-      <th class="gdfColHeader gdfResizable" style="width:300px;">name</th>
+      <th class="gdfColHeader gdfResizable" style="width:100px;">TaskID</th>
+      <th class="gdfColHeader gdfResizable" style="width:300px;">Task Name</th>
       <th class="gdfColHeader"  align="center" style="width:17px;" title="Start date is a milestone."><span class="teamworkIcon" style="font-size: 8px;">^</span></th>
-      <th class="gdfColHeader gdfResizable" style="width:80px;">start</th>
+      <th class="gdfColHeader gdfResizable" style="width:80px;">Start Date</th>
       <th class="gdfColHeader"  align="center" style="width:17px;" title="End date is a milestone."><span class="teamworkIcon" style="font-size: 8px;">^</span></th>
-      <th class="gdfColHeader gdfResizable" style="width:80px;">End</th>
-      <th class="gdfColHeader gdfResizable" style="width:50px;">dur.</th>
+      <th class="gdfColHeader gdfResizable" style="width:80px;">End Date</th>
+      <th class="gdfColHeader gdfResizable" style="width:50px;">Dur.</th>
       <th class="gdfColHeader gdfResizable" style="width:20px;">%</th>
-      <th class="gdfColHeader gdfResizable requireCanSeeDep" style="width:50px;">depe.</th>
-      <th class="gdfColHeader gdfResizable" style="width:1000px; text-align: left; padding-left: 10px;">assignees</th>
+      <th class="gdfColHeader gdfResizable requireCanSeeDep" style="width:50px;">Depen.</th>
+      <th class="gdfColHeader gdfResizable" style="width:1000px; text-align: left; padding-left: 10px;">Owner</th>
     </tr>
     </thead>
   </table>
